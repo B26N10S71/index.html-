@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>✨ GoldRush — Le Jeu du Millionnaire</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Cormorant+Garamond:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #fdf6e3; --cream2: #f5ead0; --cream3: #ede0c0;
+    --gold: #c9922a; --gold-light: #f0c050; --gold-shine: #ffe08a; --gold-dark: #8a5e10;
+    --brown: #4a2e0a; --text: #3a2000; --muted: #9a7a4a;
+    --green: #2d6a2d; --red: #a02020; --panel: #fffaf0;
+    --border: #d4aa60; --shadow: #c9922a33;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--cream); color: var(--text);
+    font-family: 'Cormorant Garamond', serif; min-height:100vh;
+    background-image:
+      radial-gradient(ellipse at 0% 0%, #f0c05022 0%, transparent 60%),
+      radial-gradient(ellipse at 100% 100%, #c9922a18 0%, transparent 60%),
+      repeating-linear-gradient(45deg, transparent, transparent 40px, #c9922a06 40px, #c9922a06 41px);
+  }
+  body::before, body::after {
+    content:''; position:fixed; left:0; right:0; height:6px;
+    background:linear-gradient(90deg, transparent, var(--gold-light), var(--gold), var(--gold-light), transparent);
+    z-index:100;
+  }
+  body::before { top:0; } body::after { bottom:0; }
+
+  .container {
+    max-width:960px; margin:0 auto; padding:28px 16px 40px;
+    display:grid; grid-template-columns:1fr 1fr; gap:20px;
+  }
+  header { grid-column:1/-1; text-align:center; padding:10px 0 4px; position:relative; }
+  header::after {
+    content:'◆ ✦ ◆'; display:block; color:var(--gold);
+    font-size:0.9rem; letter-spacing:12px; margin-top:6px; opacity:0.6;
+  }
+  header h1 {
+    font-family:'Playfair Display',serif; font-size:clamp(2rem,5vw,3rem);
+    font-weight:900; letter-spacing:4px; text-transform:uppercase; line-height:1;
+    background:linear-gradient(135deg, var(--gold-dark), var(--gold), var(--gold-shine), var(--gold));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+  }
+  header p { color:var(--muted); font-size:0.9rem; letter-spacing:3px; margin-top:4px; font-style:italic; }
+
+  /* SAVE INDICATOR */
+  .save-bar {
+    grid-column:1/-1; text-align:center;
+    font-size:0.7rem; color:var(--muted); letter-spacing:2px; font-style:italic;
+  }
+  #saveStatus { color:var(--green); font-weight:600; }
+
+  /* SOUND TOGGLE */
+  .sound-btn {
+    position:fixed; top:16px; right:16px; z-index:200;
+    background:var(--panel); border:1px solid var(--border);
+    border-radius:50%; width:38px; height:38px;
+    cursor:pointer; font-size:1.1rem;
+    box-shadow:0 2px 10px var(--shadow);
+    display:flex; align-items:center; justify-content:center;
+    transition:all 0.2s;
+  }
+  .sound-btn:hover { background:var(--cream2); transform:scale(1.1); }
+
+  .stats-bar {
+    grid-column:1/-1; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;
+  }
+  .stat-chip {
+    background:var(--panel); border:1px solid var(--border); border-radius:4px;
+    padding:10px 22px; text-align:center;
+    box-shadow:0 2px 12px var(--shadow), inset 0 1px 0 #fff8; position:relative;
+  }
+  .stat-chip::before, .stat-chip::after {
+    content:'◆'; position:absolute; top:50%; transform:translateY(-50%);
+    color:var(--gold-light); font-size:0.6rem;
+  }
+  .stat-chip::before { left:6px; } .stat-chip::after { right:6px; }
+  .stat-chip .label { color:var(--muted); font-size:0.65rem; letter-spacing:2px; text-transform:uppercase; display:block; }
+  .stat-chip .val { font-family:'Playfair Display',serif; font-size:1.3rem; font-weight:700; color:var(--gold-dark); display:block; line-height:1.2; }
+
+  .clicker-panel {
+    background:var(--panel); border:1px solid var(--border); border-radius:8px;
+    padding:30px 20px; display:flex; flex-direction:column; align-items:center; gap:16px;
+    box-shadow:0 4px 30px var(--shadow), inset 0 1px 0 #fff9; position:relative;
+  }
+  .clicker-panel::before { content:'✦'; position:absolute; top:10px; left:12px; color:var(--gold-light); font-size:0.8rem; }
+  .clicker-panel::after  { content:'✦'; position:absolute; bottom:10px; right:12px; color:var(--gold-light); font-size:0.8rem; }
+
+  .coin-wrapper { position:relative; display:flex; align-items:center; justify-content:center; }
+  .coin-halo {
+    position:absolute; width:155px; height:155px; border-radius:50%;
+    border:1px dashed var(--border); animation:spin 15s linear infinite; opacity:0.5;
+  }
+  .coin-halo-2 { width:170px; height:170px; border-color:var(--gold-light); animation:spin 20s linear infinite reverse; opacity:0.3; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  #coinBtn {
+    width:130px; height:130px; border-radius:50%; border:3px solid var(--gold);
+    cursor:pointer;
+    background:radial-gradient(circle at 32% 28%, var(--gold-shine) 0%, var(--gold-light) 30%, var(--gold) 60%, var(--gold-dark) 100%);
+    box-shadow:0 0 0 6px #c9922a22, 0 8px 30px #c9922a55, inset 0 3px 8px #fff7, inset 0 -4px 10px #0002;
+    font-size:3rem; transition:transform 0.08s, box-shadow 0.08s;
+    -webkit-tap-highlight-color:transparent; user-select:none; position:relative; z-index:2;
+  }
+  #coinBtn:hover { box-shadow:0 0 0 8px #c9922a33, 0 12px 40px #c9922a66, inset 0 3px 8px #fff8, inset 0 -4px 10px #0002; transform:scale(1.04); }
+  #coinBtn:active { transform:scale(0.92); box-shadow:0 0 0 4px #c9922a18, 0 4px 15px #c9922a33, inset 0 2px 6px #fff5, inset 0 -2px 6px #0003; }
+
+  .click-hint { font-size:0.75rem; color:var(--muted); letter-spacing:3px; text-transform:uppercase; font-style:italic; }
+  .cpc-box { background:var(--cream2); border:1px solid var(--border); border-radius:4px; padding:8px 20px; text-align:center; width:100%; }
+  .cpc-box .label { color:var(--muted); font-size:0.65rem; letter-spacing:2px; text-transform:uppercase; }
+  .cpc-box .val { font-family:'Playfair Display',serif; color:var(--gold-dark); font-size:1.1rem; font-weight:700; }
+
+  /* RESET BTN */
+  .reset-btn {
+    background:none; border:1px solid var(--cream3); border-radius:4px;
+    padding:5px 14px; font-family:'Cormorant Garamond',serif;
+    font-size:0.7rem; color:var(--muted); cursor:pointer; letter-spacing:1px;
+    transition:all 0.2s; margin-top:4px;
+  }
+  .reset-btn:hover { border-color:var(--red); color:var(--red); }
+
+  .upgrades-panel {
+    background:var(--panel); border:1px solid var(--border); border-radius:8px;
+    padding:20px 16px; box-shadow:0 4px 30px var(--shadow), inset 0 1px 0 #fff9;
+    overflow-y:auto; max-height:460px;
+  }
+  .panel-title {
+    font-family:'Playfair Display',serif; font-size:0.85rem; letter-spacing:3px;
+    color:var(--gold-dark); text-transform:uppercase; text-align:center;
+    margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid var(--border);
+    position:relative;
+  }
+  .panel-title::after {
+    content:'◆'; position:absolute; bottom:-8px; left:50%; transform:translateX(-50%);
+    background:var(--panel); padding:0 6px; color:var(--gold-light); font-size:0.7rem;
+  }
+  .upgrade-btn {
+    background:var(--cream); border:1px solid var(--cream3); border-radius:6px;
+    padding:10px 12px; cursor:pointer; color:var(--text); text-align:left; width:100%;
+    margin-bottom:8px; transition:all 0.2s;
+    display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:10px;
+    font-family:'Cormorant Garamond',serif;
+  }
+  .upgrade-btn:hover:not(:disabled) { background:#fff8e8; border-color:var(--gold); box-shadow:0 2px 12px var(--shadow); transform:translateX(3px); }
+  .upgrade-btn:disabled { opacity:0.4; cursor:not-allowed; }
+  .upgrade-btn.bought { border-color:var(--green); background:#f0fff0; }
+  .upg-icon { font-size:1.3rem; }
+  .upg-name { font-weight:600; font-size:0.9rem; }
+  .upg-desc { color:var(--muted); font-size:0.72rem; font-style:italic; }
+  .upg-cost { font-family:'Playfair Display',serif; font-size:0.8rem; color:var(--gold-dark); white-space:nowrap; }
+  .upg-cost.grey { color:var(--muted); }
+
+  .missions-panel {
+    grid-column:1/-1; background:var(--panel); border:1px solid var(--border);
+    border-radius:8px; padding:22px 20px;
+    box-shadow:0 4px 30px var(--shadow), inset 0 1px 0 #fff9;
+  }
+  .missions-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:12px; margin-top:4px; }
+  .mission-card {
+    background:var(--cream); border:1px solid var(--cream3); border-radius:6px;
+    padding:14px; position:relative; overflow:hidden; transition:all 0.2s;
+  }
+  .mission-card.completed { border-color:var(--green); background:#f4fff4; }
+  .mission-card.completed::after { content:'✓ ACCOMPLI'; position:absolute; top:8px; right:10px; font-size:0.6rem; letter-spacing:2px; color:var(--green); font-weight:700; }
+  .mission-card.active { border-color:var(--gold); background:#fffbf0; box-shadow:0 2px 12px var(--shadow); }
+  .mission-top { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  .mission-icon { font-size:1.4rem; }
+  .mission-name { font-family:'Playfair Display',serif; font-size:0.95rem; font-weight:700; color:var(--brown); }
+  .mission-desc { font-size:0.78rem; color:var(--muted); font-style:italic; margin-bottom:8px; }
+  .mission-progress-wrap { background:var(--cream3); border-radius:99px; height:5px; overflow:hidden; margin-bottom:5px; }
+  .mission-progress-bar { height:100%; background:linear-gradient(90deg, var(--gold), var(--gold-shine)); border-radius:99px; transition:width 0.4s; }
+  .mission-progress-bar.done { background:linear-gradient(90deg, #2d6a2d, #5ab05a); }
+  .mission-footer { display:flex; justify-content:space-between; align-items:center; font-size:0.7rem; }
+  .mission-pct { color:var(--muted); }
+  .mission-reward { color:var(--gold-dark); font-weight:700; }
+  .claim-btn {
+    background:linear-gradient(135deg, var(--gold), var(--gold-light)); border:none; border-radius:4px;
+    padding:5px 12px; font-family:'Playfair Display',serif; font-size:0.72rem; color:var(--brown);
+    font-weight:700; cursor:pointer; letter-spacing:1px; transition:all 0.15s;
+    box-shadow:0 2px 8px var(--shadow); animation: pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+  .claim-btn:hover { box-shadow:0 4px 16px var(--shadow); }
+
+  .generators-panel {
+    grid-column:1/-1; background:var(--panel); border:1px solid var(--border);
+    border-radius:8px; padding:22px 20px;
+    box-shadow:0 4px 30px var(--shadow), inset 0 1px 0 #fff9;
+  }
+  .generators-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(180px,1fr)); gap:10px; margin-top:4px; }
+  .gen-btn {
+    background:var(--cream); border:1px solid var(--cream3); border-radius:6px;
+    padding:14px 12px; cursor:pointer; color:var(--text); text-align:left;
+    transition:all 0.2s; font-family:'Cormorant Garamond',serif;
+  }
+  .gen-btn:hover:not(:disabled) { background:#fff8e8; border-color:var(--gold); box-shadow:0 4px 16px var(--shadow); transform:translateY(-2px); }
+  .gen-btn:disabled { opacity:0.35; cursor:not-allowed; }
+  .gen-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+  .gen-icon { font-size:1.5rem; }
+  .gen-count { font-family:'Playfair Display',serif; font-size:1.1rem; font-weight:700; color:var(--gold-dark); }
+  .gen-name { font-weight:600; font-size:0.9rem; margin-bottom:2px; }
+  .gen-desc { color:var(--muted); font-size:0.7rem; font-style:italic; margin-bottom:6px; }
+  .gen-cost { font-family:'Playfair Display',serif; font-size:0.78rem; color:var(--gold-dark); }
+  .gen-cost.grey { color:var(--muted); }
+
+  .float-text {
+    position:fixed; pointer-events:none; font-family:'Playfair Display',serif;
+    font-weight:700; color:var(--gold-dark); font-size:1rem; text-shadow:0 1px 4px #fff;
+    animation:floatUp 0.9s ease-out forwards; z-index:999;
+  }
+  @keyframes floatUp { 0%{opacity:1;transform:translateY(0) scale(1)} 100%{opacity:0;transform:translateY(-70px) scale(0.7)} }
+
+  .toast {
+    position:fixed; top:20px; left:50%;
+    transform:translateX(-50%) translateY(-90px);
+    background:linear-gradient(135deg, var(--panel), #fff8e8);
+    border:1px solid var(--gold); border-radius:4px; padding:12px 28px;
+    font-family:'Playfair Display',serif; font-size:0.85rem; color:var(--gold-dark);
+    box-shadow:0 6px 30px var(--shadow); z-index:1000;
+    transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    white-space:nowrap; letter-spacing:1px;
+  }
+  .toast.show { transform:translateX(-50%) translateY(0); }
+
+  /* BONUS PANEL */
+  .bonus-panel {
+    grid-column:1/-1; background:var(--panel); border:1px solid var(--border);
+    border-radius:8px; padding:22px 20px;
+    box-shadow:0 4px 30px var(--shadow), inset 0 1px 0 #fff9;
+  }
+  .bonus-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px,1fr)); gap:12px; margin-top:4px; }
+
+  .bonus-card {
+    background:linear-gradient(135deg, #fffbf0, var(--cream2));
+    border:1px solid var(--border); border-radius:8px; padding:16px;
+    text-align:center; position:relative; overflow:hidden;
+    transition:all 0.2s;
+  }
+  .bonus-card::before {
+    content:''; position:absolute; inset:0;
+    background:linear-gradient(135deg, #f0c05011, transparent);
+    pointer-events:none;
+  }
+  .bonus-card.active-bonus { border-color:var(--green); background:linear-gradient(135deg,#f0fff4,#e8ffe8); }
+
+  .bonus-icon { font-size:2rem; margin-bottom:6px; display:block; }
+  .bonus-name { font-family:'Playfair Display',serif; font-size:0.95rem; font-weight:700; color:var(--brown); margin-bottom:4px; }
+  .bonus-desc { font-size:0.75rem; color:var(--muted); font-style:italic; margin-bottom:10px; }
+  .bonus-duration {
+    font-size:0.7rem; color:var(--green); font-weight:700; letter-spacing:1px;
+    margin-bottom:8px; min-height:16px;
+  }
+  .watch-btn {
+    background:linear-gradient(135deg, var(--gold), var(--gold-light));
+    border:none; border-radius:4px; padding:7px 16px;
+    font-family:'Playfair Display',serif; font-size:0.78rem;
+    color:var(--brown); font-weight:700; cursor:pointer;
+    letter-spacing:1px; transition:all 0.15s;
+    box-shadow:0 2px 8px var(--shadow); width:100%;
+  }
+  .watch-btn:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 4px 16px var(--shadow); }
+  .watch-btn:disabled { opacity:0.5; cursor:not-allowed; }
+  .watch-btn.cooldown { background:linear-gradient(135deg, var(--cream3), var(--cream2)); color:var(--muted); }
+
+  /* FAKE AD OVERLAY */
+  .ad-overlay {
+    position:fixed; inset:0; background:#000a; z-index:500;
+    display:flex; align-items:center; justify-content:center;
+    opacity:0; pointer-events:none; transition:opacity 0.3s;
+  }
+  .ad-overlay.show { opacity:1; pointer-events:all; }
+  .ad-box {
+    background:var(--panel); border:2px solid var(--gold);
+    border-radius:12px; padding:30px 28px; max-width:340px; width:90%;
+    text-align:center; box-shadow:0 12px 60px #0008;
+    position:relative;
+  }
+  .ad-label { font-size:0.6rem; color:var(--muted); letter-spacing:3px; text-transform:uppercase; margin-bottom:10px; }
+  .ad-emoji { font-size:3.5rem; margin-bottom:10px; display:block; }
+  .ad-title { font-family:'Playfair Display',serif; font-size:1.1rem; font-weight:700; color:var(--brown); margin-bottom:6px; }
+  .ad-text { font-size:0.82rem; color:var(--muted); font-style:italic; margin-bottom:20px; }
+  .ad-progress-wrap { background:var(--cream3); border-radius:99px; height:6px; overflow:hidden; margin-bottom:14px; }
+  .ad-progress-bar { height:100%; background:linear-gradient(90deg,var(--gold),var(--gold-shine)); border-radius:99px; transition:width 0.1s linear; }
+  .ad-close-btn {
+    background:linear-gradient(135deg,var(--gold),var(--gold-light));
+    border:none; border-radius:6px; padding:10px 24px;
+    font-family:'Playfair Display',serif; font-size:0.9rem;
+    color:var(--brown); font-weight:700; cursor:pointer; width:100%;
+    box-shadow:0 3px 12px var(--shadow); letter-spacing:1px;
+    transition:all 0.15s;
+  }
+  .ad-close-btn:disabled { opacity:0.5; cursor:not-allowed; }
+  .ad-close-btn:hover:not(:disabled) { transform:translateY(-2px); }
+  .ad-timer { font-size:0.75rem; color:var(--muted); margin-top:8px; }
+
+  @media(max-width:600px) {
+    .container { grid-template-columns:1fr; }
+    .missions-panel, .generators-panel, .bonus-panel { grid-column:1; }
+  }
+</style>
+</head>
+<body>
+
+<button class="sound-btn" id="soundBtn" onclick="toggleSound()" title="Son on/off">🔊</button>
+<!-- FAKE AD OVERLAY -->
+<div class="ad-overlay" id="adOverlay">
+  <div class="ad-box">
+    <div class="ad-label">📺 Publicité</div>
+    <span class="ad-emoji" id="adEmoji">🛒</span>
+    <div class="ad-title" id="adTitle">Super Offre !</div>
+    <div class="ad-text" id="adText">Profitez de cette offre exceptionnelle.</div>
+    <div class="ad-progress-wrap"><div class="ad-progress-bar" id="adBar" style="width:0%"></div></div>
+    <button class="ad-close-btn" id="adCloseBtn" disabled onclick="closeAd()">Fermer la pub</button>
+    <div class="ad-timer" id="adTimer">Veuillez patienter… 5s</div>
+  </div>
+</div>
+
+✦ Bravo !</div>
+
+<div class="container">
+  <header>
+    <h1>GoldRush</h1>
+    <p>Le chemin vers la fortune</p>
+  </header>
+
+  <div class="save-bar">
+    💾 Sauvegarde automatique activée &nbsp;|&nbsp; <span id="saveStatus">Prêt</span>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-chip"><span class="label">Fortune</span><span class="val" id="statCoins">0 💰</span></div>
+    <div class="stat-chip"><span class="label">Par seconde</span><span class="val" id="statCps">0/s</span></div>
+    <div class="stat-chip"><span class="label">Total gagné</span><span class="val" id="statTotal">0 💰</span></div>
+    <div class="stat-chip"><span class="label">Missions</span><span class="val" id="statMissions">0 / 15</span></div>
+  </div>
+
+  <div class="clicker-panel">
+    <div class="coin-wrapper">
+      <div class="coin-halo"></div>
+      <div class="coin-halo coin-halo-2"></div>
+      <button id="coinBtn" onclick="handleClick(event)">💰</button>
+    </div>
+    <span class="click-hint">Cliquez pour amasser votre fortune</span>
+    <div class="cpc-box">
+      <div class="label">Gains par clic</div>
+      <div class="val" id="cpcDisplay">+1 💰</div>
+    </div>
+    <button class="reset-btn" onclick="resetGame()">↺ Recommencer</button>
+  </div>
+
+  <div class="upgrades-panel">
+    <div class="panel-title">Améliorations</div>
+    <div id="upgradesList"></div>
+  </div>
+
+  <div class="missions-panel">
+    <div class="panel-title">Missions & Défis</div>
+    <div class="missions-grid" id="missionsList"></div>
+  </div>
+
+  <!-- BONUS -->
+  <div class="bonus-panel">
+    <div class="panel-title">🎬 Regarder une pub → Gagner un Bonus</div>
+    <div class="bonus-grid" id="bonusList"></div>
+  </div>
+
+  <div class="generators-panel">
+    <div class="panel-title">Investissements</div>
+    <div class="generators-grid" id="generatorsList"></div>
+  </div>
+</div>
+
+<script>
+// ===================== AUDIO =====================
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+let soundOn = true;
+
+function getCtx() {
+  if (!audioCtx) audioCtx = new AudioCtx();
+  return audioCtx;
+}
+
+function playClick() {
+  if (!soundOn) return;
+  try {
+    const ctx = getCtx();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.setValueAtTime(880, ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(660, ctx.currentTime + 0.06);
+    g.gain.setValueAtTime(0.15, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+    o.start(); o.stop(ctx.currentTime + 0.12);
+  } catch(e) {}
+}
+
+function playBuy() {
+  if (!soundOn) return;
+  try {
+    const ctx = getCtx();
+    [440, 554, 659].forEach((freq, i) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = 'sine';
+      o.frequency.value = freq;
+      g.gain.setValueAtTime(0, ctx.currentTime + i*0.08);
+      g.gain.linearRampToValueAtTime(0.12, ctx.currentTime + i*0.08 + 0.04);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i*0.08 + 0.18);
+      o.start(ctx.currentTime + i*0.08);
+      o.stop(ctx.currentTime + i*0.08 + 0.2);
+    });
+  } catch(e) {}
+}
+
+function playMission() {
+  if (!soundOn) return;
+  try {
+    const ctx = getCtx();
+    [523, 659, 784, 1047].forEach((freq, i) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = 'sine';
+      o.frequency.value = freq;
+      g.gain.setValueAtTime(0, ctx.currentTime + i*0.1);
+      g.gain.linearRampToValueAtTime(0.15, ctx.currentTime + i*0.1 + 0.05);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i*0.1 + 0.25);
+      o.start(ctx.currentTime + i*0.1);
+      o.stop(ctx.currentTime + i*0.1 + 0.3);
+    });
+  } catch(e) {}
+}
+
+function toggleSound() {
+  soundOn = !soundOn;
+  document.getElementById('soundBtn').textContent = soundOn ? '🔊' : '🔇';
+}
+
+// ===================== STATE =====================
+let coins = 0, totalCoins = 0, totalClicks = 0;
+let coinsPerClick = 1, coinsPerSecond = 0;
+
+const upgrades = [
+  { id:'u1', name:'Bourse de cuir',     desc:'+1 coin/clic',    icon:'👜', cost:10,     cpc:1,   bought:false },
+  { id:'u2', name:'Coffre en bois',     desc:'+3 coins/clic',   icon:'📦', cost:60,     cpc:3,   bought:false },
+  { id:'u3', name:'Lingot d\'argent',   desc:'+8 coins/clic',   icon:'🥈', cost:250,    cpc:8,   bought:false },
+  { id:'u4', name:'Lingot d\'or',       desc:'+20 coins/clic',  icon:'🥇', cost:900,    cpc:20,  bought:false },
+  { id:'u5', name:'Diamant royal',      desc:'+55 coins/clic',  icon:'💎', cost:4000,   cpc:55,  bought:false },
+  { id:'u6', name:'Couronne impériale', desc:'+150 coins/clic', icon:'👑', cost:18000,  cpc:150, bought:false },
+  { id:'u7', name:'Sceptre légendaire', desc:'+400 coins/clic', icon:'🏺', cost:80000,  cpc:400, bought:false },
+  { id:'u8', name:'Trône d\'or',        desc:'+1000 coins/clic',icon:'🪑', cost:400000, cpc:1000,bought:false },
+];
+
+const generators = [
+  { id:'g1', name:'Comptoir',      desc:'Commerce local',    icon:'🏪', baseCost:20,    cps:0.1,  count:0 },
+  { id:'g2', name:'Caravane',      desc:'Commerce lointain', icon:'🐪', baseCost:100,   cps:0.6,  count:0 },
+  { id:'g3', name:'Manufacture',   desc:'Produit en série',  icon:'⚙️', baseCost:500,   cps:3,    count:0 },
+  { id:'g4', name:'Banque privée', desc:'Intérêts composés', icon:'🏦', baseCost:2500,  cps:14,   count:0 },
+  { id:'g5', name:'Empire',        desc:'Revenus colossaux', icon:'🏰', baseCost:15000, cps:75,   count:0 },
+];
+
+const missions = [
+  // Clics
+  { id:'m1',  name:'Premier Clic',       desc:'Cliquer pour la première fois',       icon:'👆', goal:1,       type:'clicks', reward:5,     rewardCpc:0, done:false, claimed:false },
+  { id:'m2',  name:'Cent Coups',         desc:'Cliquer 100 fois',                    icon:'✊', goal:100,     type:'clicks', reward:50,    rewardCpc:0, done:false, claimed:false },
+  { id:'m3',  name:'Mille Coups',        desc:'Cliquer 1 000 fois',                  icon:'💪', goal:1000,    type:'clicks', reward:300,   rewardCpc:1, done:false, claimed:false },
+  { id:'m4',  name:'Cliqueur Acharné',   desc:'Cliquer 10 000 fois',                 icon:'🤜', goal:10000,   type:'clicks', reward:2000,  rewardCpc:5, done:false, claimed:false },
+  // Fortune totale
+  { id:'m5',  name:'Premier Sou',        desc:'Accumuler 100 coins',                 icon:'🪙', goal:100,     type:'total',  reward:50,    rewardCpc:0, done:false, claimed:false },
+  { id:'m6',  name:'Petite Fortune',     desc:'Accumuler 1 000 coins au total',      icon:'💰', goal:1000,    type:'total',  reward:200,   rewardCpc:1, done:false, claimed:false },
+  { id:'m7',  name:'Bourgeois',          desc:'Accumuler 10 000 coins au total',     icon:'🎩', goal:10000,   type:'total',  reward:1000,  rewardCpc:2, done:false, claimed:false },
+  { id:'m8',  name:'Grand Négociant',    desc:'Accumuler 100 000 coins au total',    icon:'🌍', goal:100000,  type:'total',  reward:8000,  rewardCpc:0, done:false, claimed:false },
+  { id:'m9',  name:'Millionnaire',       desc:'Accumuler 1 000 000 coins au total',  icon:'💎', goal:1000000, type:'total',  reward:50000, rewardCpc:20,done:false, claimed:false },
+  // Investissements
+  { id:'m10', name:'Investisseur Débutant',desc:'Posséder 3 investissements',         icon:'📊', goal:3,       type:'gens',   reward:200,   rewardCpc:0, done:false, claimed:false },
+  { id:'m11', name:'Entrepreneur',       desc:'Posséder 10 investissements',         icon:'📈', goal:10,      type:'gens',   reward:1000,  rewardCpc:0, done:false, claimed:false },
+  { id:'m12', name:'Magnat',             desc:'Posséder 25 investissements',         icon:'🏭', goal:25,      type:'gens',   reward:5000,  rewardCpc:0, done:false, claimed:false },
+  // CPS
+  { id:'m13', name:'Revenu Passif',      desc:'Dépasser 5 coins/seconde',            icon:'⏱️', goal:5,       type:'cps',    reward:500,   rewardCpc:2, done:false, claimed:false },
+  { id:'m14', name:'Rentier',            desc:'Dépasser 50 coins/seconde',           icon:'🛋️', goal:50,      type:'cps',    reward:3000,  rewardCpc:5, done:false, claimed:false },
+  { id:'m15', name:'Tycoon',             desc:'Dépasser 200 coins/seconde',          icon:'🚀', goal:200,     type:'cps',    reward:15000, rewardCpc:15,done:false, claimed:false },
+];
+
+// ===================== SAVE / LOAD =====================
+const SAVE_KEY = 'goldrush_save';
+
+function saveGame() {
+  const data = {
+    coins, totalCoins, totalClicks, coinsPerClick, coinsPerSecond,
+    upgrades: upgrades.map(u => ({ id:u.id, bought:u.bought })),
+    generators: generators.map(g => ({ id:g.id, count:g.count })),
+    missions: missions.map(m => ({ id:m.id, done:m.done, claimed:m.claimed })),
+    savedAt: Date.now()
+  };
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+    const el = document.getElementById('saveStatus');
+    el.textContent = '✓ Sauvegardé à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'});
+    el.style.color = 'var(--green)';
+  } catch(e) {}
+}
+
+function loadGame() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    coins = data.coins || 0;
+    totalCoins = data.totalCoins || 0;
+    totalClicks = data.totalClicks || 0;
+    coinsPerClick = data.coinsPerClick || 1;
+    (data.upgrades || []).forEach(s => {
+      const u = upgrades.find(x => x.id === s.id);
+      if (u) u.bought = s.bought;
+    });
+    (data.generators || []).forEach(s => {
+      const g = generators.find(x => x.id === s.id);
+      if (g) g.count = s.count;
+    });
+    (data.missions || []).forEach(s => {
+      const m = missions.find(x => x.id === s.id);
+      if (m) { m.done = s.done; m.claimed = s.claimed; }
+    });
+    recalcCps();
+    // Offline earnings
+    if (data.savedAt && coinsPerSecond > 0) {
+      const elapsed = Math.min((Date.now() - data.savedAt) / 1000, 3600); // max 1h
+      const earned = Math.floor(coinsPerSecond * elapsed);
+      if (earned > 0) {
+        coins += earned;
+        totalCoins += earned;
+        showToast('💤 Absent ' + Math.floor(elapsed) + 's → +' + fmt(earned) + ' coins !');
+      }
+    }
+  } catch(e) { console.log('Pas de sauvegarde.'); }
+}
+
+function resetGame() {
+  if (!confirm('Recommencer depuis zéro ? Votre progression sera effacée.')) return;
+  localStorage.removeItem(SAVE_KEY);
+  coins = 0; totalCoins = 0; totalClicks = 0; coinsPerClick = 1; coinsPerSecond = 0;
+  upgrades.forEach(u => u.bought = false);
+  generators.forEach(g => g.count = 0);
+  missions.forEach(m => { m.done = false; m.claimed = false; });
+  renderAll();
+}
+
+// Auto-save every 15 seconds
+setInterval(saveGame, 15000);
+
+// ===================== HELPERS =====================
+function fmt(n) {
+  n = Math.floor(n);
+  if (n >= 1e9) return (n/1e9).toFixed(1)+'B';
+  if (n >= 1e6) return (n/1e6).toFixed(1)+'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1)+'K';
+  return n.toString();
+}
+function totalGens() { return generators.reduce((s,g) => s+g.count, 0); }
+function genCost(g)  { return Math.floor(g.baseCost * Math.pow(1.15, g.count)); }
+function recalcCps() {
+  coinsPerSecond = Math.round(generators.reduce((s,g) => s+g.cps*g.count, 0)*10)/10;
+}
+
+// ===================== MISSIONS =====================
+function missionProgress(m) {
+  switch(m.type) {
+    case 'total':  return Math.min(m.goal, totalCoins);
+    case 'clicks': return Math.min(m.goal, totalClicks);
+    case 'gens':   return Math.min(m.goal, totalGens());
+    case 'cps':    return Math.min(m.goal, coinsPerSecond);
+  }
+  return 0;
+}
+
+function checkMissions() {
+  missions.forEach(m => {
+    if (!m.done && missionProgress(m) >= m.goal) {
+      m.done = true;
+      playMission();
+      showToast('✦ Mission accomplie : ' + m.name + ' !');
+    }
+  });
+}
+
+function claimMission(id) {
+  const m = missions.find(x => x.id===id);
+  if (!m || !m.done || m.claimed) return;
+  m.claimed = true;
+  coins += m.reward; totalCoins += m.reward;
+  if (m.rewardCpc > 0) coinsPerClick += m.rewardCpc;
+  playBuy();
+  showToast('💰 Récompense : +' + fmt(m.reward) + ' coins !' + (m.rewardCpc>0?' +'+m.rewardCpc+' cpc !':''));
+  saveGame();
+  renderAll();
+}
+
+// ===================== ACTIONS =====================
+function handleClick(e) {
+  const mult = getBonusMultiplier('x3clic') * getBonusMultiplier('x2coins');
+  const gain = coinsPerClick * mult;
+  coins += gain; totalCoins += gain; totalClicks++;
+  playClick();
+  checkMissions();
+  spawnFloat(e, '+'+fmt(gain));
+  renderAll();
+}
+
+function buyUpgrade(id) {
+  const u = upgrades.find(x => x.id===id);
+  if (!u || u.bought || coins < u.cost) return;
+  coins -= u.cost; u.bought = true; coinsPerClick += u.cpc;
+  playBuy();
+  renderAll();
+}
+
+function buyGen(id) {
+  const g = generators.find(x => x.id===id);
+  if (!g) return;
+  const c = genCost(g);
+  if (coins < c) return;
+  coins -= c; g.count++; recalcCps();
+  playBuy();
+  checkMissions();
+  renderAll();
+}
+
+// ===================== RENDER =====================
+function renderUpgrades() {
+  const el = document.getElementById('upgradesList');
+  el.innerHTML = '';
+  upgrades.forEach(u => {
+    const can = coins >= u.cost;
+    const btn = document.createElement('button');
+    btn.className = 'upgrade-btn' + (u.bought?' bought':'');
+    btn.disabled = u.bought || !can;
+    btn.innerHTML = `
+      <span class="upg-icon">${u.bought?'✅':u.icon}</span>
+      <div><div class="upg-name">${u.name}</div><div class="upg-desc">${u.desc}</div></div>
+      <div class="upg-cost ${can||u.bought?'':'grey'}">${u.bought?'Acquis':'💰 '+fmt(u.cost)}</div>`;
+    if (!u.bought) btn.onclick = ()=>buyUpgrade(u.id);
+    el.appendChild(btn);
+  });
+}
+
+function renderMissions() {
+  const el = document.getElementById('missionsList');
+  el.innerHTML = '';
+  let done = 0;
+  missions.forEach(m => {
+    if (m.claimed) done++;
+    const prog = missionProgress(m);
+    const pct  = Math.min(100, Math.round((prog/m.goal)*100));
+    const card = document.createElement('div');
+    card.className = 'mission-card' + (m.claimed?' completed':m.done?' active':'');
+    let footer = `<span class="mission-pct">${fmt(prog)} / ${fmt(m.goal)}</span>
+                  <span class="mission-reward">+${fmt(m.reward)} 💰${m.rewardCpc>0?' +'+m.rewardCpc+' cpc':''}</span>`;
+    if (m.done && !m.claimed) {
+      footer = `<span class="mission-pct">100%</span>
+                <button class="claim-btn" onclick="claimMission('${m.id}')">Réclamer !</button>`;
+    }
+    card.innerHTML = `
+      <div class="mission-top"><span class="mission-icon">${m.icon}</span><span class="mission-name">${m.name}</span></div>
+      <div class="mission-desc">${m.desc}</div>
+      <div class="mission-progress-wrap"><div class="mission-progress-bar ${m.done?'done':''}" style="width:${pct}%"></div></div>
+      <div class="mission-footer">${footer}</div>`;
+    el.appendChild(card);
+  });
+  document.getElementById('statMissions').textContent = done + ' / ' + missions.length;
+}
+
+function renderGenerators() {
+  const el = document.getElementById('generatorsList');
+  el.innerHTML = '';
+  generators.forEach(g => {
+    const cost = genCost(g);
+    const can  = coins >= cost;
+    const btn  = document.createElement('button');
+    btn.className = 'gen-btn';
+    btn.disabled = !can;
+    btn.innerHTML = `
+      <div class="gen-top"><span class="gen-icon">${g.icon}</span><span class="gen-count">${g.count}</span></div>
+      <div class="gen-name">${g.name}</div>
+      <div class="gen-desc">${g.desc} • ${g.cps}/s</div>
+      <div class="gen-cost ${can?'':'grey'}">💰 ${fmt(cost)}</div>`;
+    btn.onclick = ()=>buyGen(g.id);
+    el.appendChild(btn);
+  });
+}
+
+function renderStats() {
+  document.getElementById('statCoins').textContent   = fmt(coins) + ' 💰';
+  document.getElementById('statCps').textContent     = fmt(coinsPerSecond) + '/s';
+  document.getElementById('statTotal').textContent   = fmt(totalCoins) + ' 💰';
+  document.getElementById('cpcDisplay').textContent  = '+' + fmt(coinsPerClick) + ' 💰';
+}
+
+function renderAll() { renderStats(); renderUpgrades(); renderMissions(); renderGenerators(); renderBonuses(); }
+
+// ===================== PASSIVE =====================
+setInterval(() => {
+  if (coinsPerSecond > 0) {
+    const mult = getBonusMultiplier('x5cps') * getBonusMultiplier('x2coins');
+    const g = (coinsPerSecond * mult) / 20;
+    coins += g; totalCoins += g;
+    checkMissions();
+    renderStats(); renderMissions(); renderUpgrades(); renderGenerators();
+  }
+}, 50);
+
+// ===================== FX =====================
+function spawnFloat(e, txt) {
+  const el = document.createElement('div');
+  el.className = 'float-text'; el.textContent = txt;
+  el.style.left = (e.clientX-20)+'px'; el.style.top = (e.clientY-10)+'px';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 900);
+}
+
+let toastTimeout;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ===================== BONUS SYSTEM =====================
+const bonuses = [
+  {
+    id:'b1', name:'Pluie d\'Or', icon:'🌧️',
+    desc:'x2 sur tous vos coins pendant 2 minutes',
+    duration: 120, type:'x2coins', cooldown:300,
+    lastUsed: 0, active:false, timer:0
+  },
+  {
+    id:'b2', name:'Mains Magiques', icon:'🤲',
+    desc:'x3 sur chaque clic pendant 1 minute',
+    duration: 60, type:'x3clic', cooldown:240,
+    lastUsed: 0, active:false, timer:0
+  },
+  {
+    id:'b3', name:'Turbo Usines', icon:'⚡',
+    desc:'x5 sur les revenus passifs pendant 90 secondes',
+    duration: 90, type:'x5cps', cooldown:360,
+    lastUsed: 0, active:false, timer:0
+  },
+  {
+    id:'b4', name:'Coffre Mystère', icon:'🎁',
+    desc:'Recevez un cadeau aléatoire de 500 à 5000 coins',
+    duration: 0, type:'gift', cooldown:180,
+    lastUsed: 0, active:false, timer:0
+  },
+];
+
+// Fake ad content pool
+const fakeAds = [
+  { emoji:'🛒', title:'Soldes Exceptionnels !', text:'Jusqu\'à -70% sur des milliers d\'articles.' },
+  { emoji:'🍕', title:'Livraison Offerte !', text:'Commandez maintenant et régalez-vous.' },
+  { emoji:'📱', title:'Nouveau Smartphone', text:'Le meilleur appareil photo du marché.' },
+  { emoji:'✈️', title:'Voyages à Prix Cassés', text:'Partez en vacances dès 99€ aller-retour.' },
+  { emoji:'🏋️', title:'Forme & Santé', text:'Abonnement salle de sport à -50% ce mois-ci.' },
+];
+
+let currentBonusId = null;
+let adInterval = null;
+
+function watchAd(bonusId) {
+  currentBonusId = bonusId;
+  const ad = fakeAds[Math.floor(Math.random() * fakeAds.length)];
+  document.getElementById('adEmoji').textContent = ad.emoji;
+  document.getElementById('adTitle').textContent = ad.title;
+  document.getElementById('adText').textContent  = ad.text;
+  document.getElementById('adBar').style.width   = '0%';
+  document.getElementById('adCloseBtn').disabled = true;
+  document.getElementById('adTimer').textContent = 'Veuillez patienter… 5s';
+  document.getElementById('adOverlay').classList.add('show');
+
+  let elapsed = 0;
+  const total  = 5000; // 5 secondes
+  const step   = 100;
+  clearInterval(adInterval);
+  adInterval = setInterval(() => {
+    elapsed += step;
+    const pct = Math.min(100, (elapsed / total) * 100);
+    document.getElementById('adBar').style.width = pct + '%';
+    const rem = Math.max(0, Math.ceil((total - elapsed) / 1000));
+    document.getElementById('adTimer').textContent = rem > 0 ? 'Veuillez patienter… ' + rem + 's' : '✓ Pub terminée !';
+    if (elapsed >= total) {
+      clearInterval(adInterval);
+      document.getElementById('adCloseBtn').disabled = false;
+    }
+  }, step);
+}
+
+function closeAd() {
+  document.getElementById('adOverlay').classList.remove('show');
+  clearInterval(adInterval);
+  applyBonus(currentBonusId);
+  currentBonusId = null;
+}
+
+function applyBonus(id) {
+  const b = bonuses.find(x => x.id === id);
+  if (!b) return;
+  b.lastUsed = Date.now();
+
+  if (b.type === 'gift') {
+    const gift = Math.floor(Math.random() * 4500) + 500;
+    coins += gift; totalCoins += gift;
+    playMission();
+    showToast('🎁 Cadeau mystère : +' + fmt(gift) + ' coins !');
+    renderAll();
+    renderBonuses();
+    return;
+  }
+
+  b.active = true;
+  b.timer  = b.duration;
+  playMission();
+  showToast('✨ Bonus activé : ' + b.name + ' pendant ' + b.duration + 's !');
+  renderBonuses();
+
+  const tick = setInterval(() => {
+    b.timer--;
+    if (b.timer <= 0) {
+      b.active = false;
+      clearInterval(tick);
+      showToast('⏰ Bonus ' + b.name + ' terminé !');
+    }
+    renderBonuses();
+  }, 1000);
+}
+
+function getBonusMultiplier(type) {
+  const b = bonuses.find(x => x.type === type && x.active);
+  return b ? (type === 'x2coins' ? 2 : type === 'x3clic' ? 3 : 5) : 1;
+}
+
+function renderBonuses() {
+  const el = document.getElementById('bonusList');
+  el.innerHTML = '';
+  const now = Date.now();
+  bonuses.forEach(b => {
+    const cooldownLeft = Math.max(0, Math.ceil((b.lastUsed + b.cooldown * 1000 - now) / 1000));
+    const onCooldown   = cooldownLeft > 0;
+    const card = document.createElement('div');
+    card.className = 'bonus-card' + (b.active ? ' active-bonus' : '');
+    let btnLabel = '📺 Regarder une pub';
+    let btnClass = 'watch-btn';
+    let btnDisabled = '';
+    let durationHtml = '';
+
+    if (b.active) {
+      durationHtml = `<div class="bonus-duration">⏱ Actif : ${b.timer}s restantes</div>`;
+      btnLabel = '✓ En cours…';
+      btnDisabled = 'disabled';
+    } else if (onCooldown) {
+      durationHtml = `<div class="bonus-duration" style="color:var(--muted)">🕐 Disponible dans ${cooldownLeft}s</div>`;
+      btnLabel = '🕐 ' + cooldownLeft + 's';
+      btnClass += ' cooldown';
+      btnDisabled = 'disabled';
+    } else {
+      durationHtml = `<div class="bonus-duration" style="color:var(--gold-dark)">✦ Disponible !</div>`;
+    }
+
+    card.innerHTML = `
+      <span class="bonus-icon">${b.icon}</span>
+      <div class="bonus-name">${b.name}</div>
+      <div class="bonus-desc">${b.desc}</div>
+      ${durationHtml}
+      <button class="${btnClass}" ${btnDisabled} onclick="watchAd('${b.id}')">${btnLabel}</button>`;
+    el.appendChild(card);
+  });
+}
+
+// Update cooldown timers every second
+setInterval(() => renderBonuses(), 1000);
+
+// ===================== INIT =====================
+loadGame();
+renderAll();
+</script>
+</body>
+</html>
